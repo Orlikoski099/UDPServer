@@ -3,6 +3,7 @@ import tkinter as tk
 import threading
 from protocol import OrlikoskiProtocol
 import os
+from datetime import datetime
 
 # Configurações do cliente
 SERVER_HOST = '127.0.0.1'  # Endereço IP do servidor
@@ -30,6 +31,7 @@ def receiveResponse():
 
     # Recebe o nome do arquivo a partir da solicitação
     nome_arquivo = FILE_REQUEST.split(" ")[1].split("/")[-1]
+    nome_arquivo = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{nome_arquivo}"
 
     # Verifica se o diretório existe, se não existir, cria-o
     if not os.path.exists("filesReceived"):
