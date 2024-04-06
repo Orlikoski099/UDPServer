@@ -39,6 +39,7 @@ while True:
                 tamanho_total = len(dados_arquivo)
                 tamanho_enviado = 0
                 indice_pacote = 0
+                num_pacotes_enviados = 0  # Inicializa o contador de pacotes enviados
                 while tamanho_enviado < tamanho_total:
                     inicio = indice_pacote * BUFFER_SIZE
                     fim = min((indice_pacote + 1) * BUFFER_SIZE, tamanho_total)
@@ -46,9 +47,10 @@ while True:
                     server_socket.sendto(pacote, client_address)
                     tamanho_enviado += len(pacote)
                     indice_pacote += 1
+                    num_pacotes_enviados += 1  # Incrementa o contador de pacotes enviados
                 # Enviar um pacote vazio para indicar o final do arquivo
                 server_socket.sendto(b'', client_address)
-                print('Dados do arquivo', nome_arquivo, 'enviados de volta para o cliente.')
+                print(f'Dados do arquivo {nome_arquivo} enviados de volta para o cliente. Total de pacotes enviados: {num_pacotes_enviados}')
         else:
             # Se o arquivo não existir, envia uma mensagem de erro para o cliente
             mensagem_erro = 'Arquivo não encontrado'

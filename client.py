@@ -39,6 +39,7 @@ def receiveResponse():
 
     # Caminho completo para salvar o arquivo recebido
     caminho_arquivo = f"filesReceived/{nome_arquivo}"
+    num_bytes = 0
 
     with open(caminho_arquivo, 'wb') as file:
         while True:
@@ -51,8 +52,9 @@ def receiveResponse():
             file.write(pacote)
 
             # Atualiza a label com o número de bytes recebidos
-            num_bytes = len(pacote)
-            status_label.configure(text=f"Status: Recebidos {num_bytes} bytes.")
+            num_bytes += len(pacote)
+
+    status_label.configure(text=f"Status: Recebidos {num_bytes/1024} Kbytes.")
 
     print(f'Arquivo recebido salvo em: {caminho_arquivo}')
 
