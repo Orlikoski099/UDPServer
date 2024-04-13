@@ -1,31 +1,16 @@
 import socket
 import os
 from protocol import OrlikoskiProtocol
+import threading
 
 # Configurações do servidor
 HOST = '127.0.0.1'  # Endereço IP do servidor
 PORT = 12345        # Porta para comunicação (maior que 1024)
 BUFFER_SIZE = 1024  # Tamanho do buffer para leitura do arquivo
 
-# Criação do socket UDP
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-server_socket.bind((HOST, PORT))
-
-print('Servidor UDP iniciado.')
-
-protocolo = OrlikoskiProtocol()
-
-while True:
-    # Recebe dados do cliente
-    try:
-        data, client_address = server_socket.recvfrom(1024)
-    except ConnectionResetError:
-        print('Erro: Conexão com o cliente foi interrompida inesperadamente.')
-        continue
-
-    print('Requisição de arquivo recebida do cliente:', data.decode())
-
-    # Processa a requisição usando o protocolo definido
+# Função para processar cada requisição em uma thread separada
+def handle_request(data, client_address):
+    protocolo = OrlikoskiProtocol()
     resposta = protocolo.processar_requisicao(data.decode())
 
     # Verifica se a requisição foi processada com sucesso
@@ -60,6 +45,26 @@ while True:
         # Se houver um erro na requisição, envia a mensagem de erro para o cliente
         server_socket.sendto(resposta.encode(), client_address)
         print('Mensagem de erro enviada para o cliente.')
+
+# Criação do socket UDP
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+server_socket.bind((HOST, PORT))
+
+print('Servidor UDP iniciado.')
+
+while True:
+    # Recebe dados do cliente
+    try:
+        data, client_address = server_socket.recvfrom(1024)
+    except ConnectionResetError:
+        print('Erro: Conexão com o cliente foi interrompida inesperadamente.')
+        continue
+
+    print('Requisição de arquivo recebida do cliente:', data.decode())
+
+    # Cria e inicia uma nova thread para processar a requisição
+    thread = threading.Thread(target=handle_request, args=(data, client_address))
+    thread.start()
 
 # Fechar o socket
 server_socket.close()

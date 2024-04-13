@@ -12,11 +12,15 @@ class ClientGUI:
         # Configurações do cliente
         self.SERVER_HOST = '127.0.0.1'  # Endereço IP do servidor
         self.SERVER_PORT = 12345        # Porta do servidor
-        self.FILE_REQUEST = f'OBTER filesToSend/videoTeste.mp4'  # Exemplo de requisição de arquivo
+        self.FILE_REQUEST = ''          # Requisição de arquivo inicialmente vazia
         self.FILE_NAME = f'arquivo_{client_id}'
 
         # Criação do socket UDP
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        # Entrada de texto para o nome do arquivo
+        self.entry_arquivo = tk.Entry(master)
+        self.entry_arquivo.pack()
 
         # Botão para enviar a requisição
         self.botao_enviar = tk.Button(master, text=f"Enviar Request Cliente {self.client_id}", command=self.send_request)
@@ -31,6 +35,9 @@ class ClientGUI:
         self.thread_receive.daemon = True
 
     def send_request(self):
+        # Obtém o nome do arquivo da entrada de texto
+        self.FILE_REQUEST = f'OBTER filesToSend/{self.entry_arquivo.get()}'
+
         # Envia requisição para o servidor
         self.client_socket.sendto(self.FILE_REQUEST.encode(), (self.SERVER_HOST, self.SERVER_PORT))
         print(f'Requisição enviada para o servidor pelo Cliente {self.client_id}.')
