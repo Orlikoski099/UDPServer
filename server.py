@@ -2,11 +2,27 @@ import socket
 import os
 from protocol import OrlikoskiProtocol
 import threading
+import hashlib
 
 # Configurações do servidor
 HOST = '127.0.0.1'  # Endereço IP do servidor
 PORT = 12345        # Porta para comunicação (maior que 1024)
 BUFFER_SIZE = 1024  # Tamanho do buffer para leitura do arquivo
+
+# Função para calcular o checksum de uma string
+def calcular_checksum(data):
+    checksum = hashlib.sha256(data).digest()
+    return checksum
+
+# Função para dividir os dados em pacotes de tamanho máximo BUFFER_SIZE
+def divide_em_pacotes(data):
+    num_pacotes = len(data) // BUFFER_SIZE + 1
+    pacotes = []
+    for i in range(num_pacotes):
+        inicio = i * BUFFER_SIZE
+        fim = min((i + 1) * BUFFER_SIZE, len(data))
+        pacotes.append(data[inicio:fim])
+    return pacotes
 
 # Função para processar cada requisição em uma thread separada
 def handle_request(data, client_address):
@@ -21,18 +37,12 @@ def handle_request(data, client_address):
             # Abre o arquivo e envia os dados em pacotes para o cliente
             with open(nome_arquivo, 'rb') as file:
                 dados_arquivo = file.read()
-                tamanho_total = len(dados_arquivo)
-                tamanho_enviado = 0
-                indice_pacote = 0
+                checksum = calcular_checksum(dados_arquivo)
+                pacotes = divide_em_pacotes(checksum + dados_arquivo)
                 num_pacotes_enviados = 0  # Inicializa o contador de pacotes enviados
-                while tamanho_enviado < tamanho_total:
-                    inicio = indice_pacote * BUFFER_SIZE
-                    fim = min((indice_pacote + 1) * BUFFER_SIZE, tamanho_total)
-                    pacote = dados_arquivo[inicio:fim]
+                for pacote in pacotes:
                     server_socket.sendto(pacote, client_address)
-                    tamanho_enviado += len(pacote)
-                    indice_pacote += 1
-                    num_pacotes_enviados += 1  # Incrementa o contador de pacotes enviados
+                    num_pacotes_enviados += 1
                 # Enviar um pacote vazio para indicar o final do arquivo
                 server_socket.sendto(b'', client_address)
                 print(f'Dados do arquivo {nome_arquivo} enviados de volta para o cliente. Total de pacotes enviados: {num_pacotes_enviados}')

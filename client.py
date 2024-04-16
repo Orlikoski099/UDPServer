@@ -14,9 +14,7 @@ class ClientGUI:
         self.SERVER_PORT = 12345        # Porta do servidor
         self.FILE_REQUEST = ''          # Requisição de arquivo inicialmente vazia
         self.FILE_NAME = f'arquivo_{client_id}'
-
-        # Criação do socket UDP
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.client_socket = None       # Inicializa o socket do cliente como None
 
         # Entrada de texto para o nome do arquivo
         self.entry_arquivo = tk.Entry(master)
@@ -38,9 +36,15 @@ class ClientGUI:
         # Obtém o nome do arquivo da entrada de texto
         self.FILE_REQUEST = f'OBTER filesToSend/{self.entry_arquivo.get()}'
 
+        # Cria o socket UDP apenas se não estiver criado
+        if self.client_socket is None:
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
         # Envia requisição para o servidor
         self.client_socket.sendto(self.FILE_REQUEST.encode(), (self.SERVER_HOST, self.SERVER_PORT))
         print(f'Requisição enviada para o servidor pelo Cliente {self.client_id}.')
+        
+        # Inicia a thread de recebimento apenas se não estiver ativa
         if not self.thread_receive.is_alive():
             self.thread_receive.start()
 
@@ -62,22 +66,27 @@ class ClientGUI:
 
         with open(caminho_arquivo, 'wb') as file:
             while True:
-                pacote, server_address = self.client_socket.recvfrom(1024)
+                try:
+                    pacote, server_address = self.client_socket.recvfrom(1024)
+                except ConnectionResetError:
+                    print('Erro: Conexão com o servidor foi interrompida inesperadamente.')
+                    break
+                
                 if len(pacote) == 0:
                     print('Recebida mensagem de finalização do servidor.')
                     break  # Encerra o loop se o tamanho do pacote for zero (final da transmissão)
                 
                 # Escreve os dados recebidos no arquivo
                 file.write(pacote)
-
-                # Atualiza a label com o número de bytes recebidos
-                num_bytes += len(pacote)
+                num_bytes += len(pacote)  # Atualiza a quantidade total de bytes recebidos
 
         self.status_label.configure(text=f"Status Cliente {self.client_id}: Recebidos {num_bytes/1024} Kbytes.")
         print(f'Arquivo recebido salvo em: {caminho_arquivo}')
 
-        # Fechar o socket no final
-        self.client_socket.close()
+        # Fecha o socket após receber todos os pacotes
+        if self.client_socket:
+            self.client_socket.close()
+            self.client_socket = None
 
 if __name__ == "__main__":
     janela = tk.Tk()
