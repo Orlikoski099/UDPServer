@@ -90,16 +90,15 @@ class ClientGUI:
                     print('Recebida mensagem de finalização do servidor.')
                     break  # Encerra o loop se o tamanho do pacote for zero (final da transmissão)
                 
-                # Calcula o checksum apenas para os dados
-                
-                
-                checksum = pacote[:32]
+                # Divide o pacote em checksum e dados
+                checksum_recebido = pacote[:32]
                 dados = pacote[32:]
-
-                if (self.calcular_checksum(dados) != checksum):
-                    print('Checksum corrompido')
-
-                else:
+                
+                # Calcula o checksum apenas para os dados
+                checksum_calculado = calcular_checksum(dados)
+                
+                # Verifica se o checksum recebido coincide com o calculado
+                if checksum_recebido == checksum_calculado:
                     # Escreve os dados recebidos no arquivo
                     file.write(dados)
                     num_bytes += len(dados)  # Atualiza a quantidade total de bytes recebidos
@@ -107,6 +106,8 @@ class ClientGUI:
                     # Envia o ACK para o servidor
                     self.enviar_ack(seq_num, server_address)
                     seq_num += 1
+                else:
+                    print('Erro: Checksum incorreto. Dados corrompidos. Descartando pacote.')
 
         self.status_label.configure(text=f"Status Cliente {self.client_id}: Recebidos {num_bytes/1024} Kbytes.")
         print(f'Arquivo recebido salvo em: {caminho_arquivo}')
@@ -115,6 +116,11 @@ class ClientGUI:
         if self.client_socket:
             self.client_socket.close()
             self.client_socket = None
+
+# Função para calcular o checksum de uma string
+def calcular_checksum(data):
+    checksum = hashlib.sha256(data).digest()
+    return checksum
 
 if __name__ == "__main__":
     janela = tk.Tk()
