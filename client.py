@@ -55,6 +55,12 @@ class ClientGUI:
         ack = f'ACK {seq_num}'.encode()
         self.client_socket.sendto(ack, server_address)
 
+    
+    # Função para calcular o checksum de uma string
+    def calcular_checksum(data):
+        checksum = hashlib.sha256(data).digest()
+        return checksum
+
     def receive_response(self):
         # Recebe o nome do arquivo a partir da solicitação
         nome_arquivo = self.FILE_NAME
@@ -85,15 +91,22 @@ class ClientGUI:
                     break  # Encerra o loop se o tamanho do pacote for zero (final da transmissão)
                 
                 # Calcula o checksum apenas para os dados
-                dados = pacote[32:]
                 
-                # Escreve os dados recebidos no arquivo
-                file.write(dados)
-                num_bytes += len(dados)  # Atualiza a quantidade total de bytes recebidos
+                
+                checksum = pacote[:32]
+                dados = pacote[32:]
 
-                # Envia o ACK para o servidor
-                self.enviar_ack(seq_num, server_address)
-                seq_num += 1
+                if (self.calcular_checksum(dados) != checksum):
+                    print('Checksum corrompido')
+
+                else:
+                    # Escreve os dados recebidos no arquivo
+                    file.write(dados)
+                    num_bytes += len(dados)  # Atualiza a quantidade total de bytes recebidos
+
+                    # Envia o ACK para o servidor
+                    self.enviar_ack(seq_num, server_address)
+                    seq_num += 1
 
         self.status_label.configure(text=f"Status Cliente {self.client_id}: Recebidos {num_bytes/1024} Kbytes.")
         print(f'Arquivo recebido salvo em: {caminho_arquivo}')
