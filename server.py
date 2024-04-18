@@ -1,3 +1,4 @@
+import random
 import socket
 import os
 import threading
@@ -11,6 +12,8 @@ HOST = '127.0.0.1'  # Endereço IP do servidor
 PORT = 12345        # Porta para comunicação (maior que 1024)
 BUFFER_SIZE = 32768  # Tamanho do buffer para leitura do arquivo
 DATA_MAX_SIZE = BUFFER_SIZE - 32  # Tamanho máximo dos dados no pacote (descontando o espaço para o checksum)
+PKT_LOSS = 20
+
 
 # Variável global para armazenar o número do último ACK recebido
 last_ack_received = -1
@@ -50,7 +53,8 @@ def handle_request(data, client_address):
                     # Concatena o checksum com os dados
                     pacote = checksum + dados
                     # Envia o pacote para o cliente
-                    enviar_pacote(pacote, server_socket, client_address)
+                    if (random.randint(1,100) > PKT_LOSS):
+                        enviar_pacote(pacote, server_socket, client_address)
                     # Aguarda o ACK correspondente ao pacote enviado
                     if not esperar_ack():
                         print(f'Erro: ACK {seq_num} não recebido. Reenviando o pacote...')
