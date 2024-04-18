@@ -4,6 +4,7 @@ import socket
 import os
 from datetime import datetime
 import hashlib
+import time
 
 class ClientGUI:
     def __init__(self, master, client_id):
@@ -49,6 +50,11 @@ class ClientGUI:
         if not self.thread_receive.is_alive():
             self.thread_receive.start()
 
+    # Função para enviar o ACK para o servidor
+    def enviar_ack(self, seq_num, server_address):
+        ack = f'ACK {seq_num}'.encode()
+        self.client_socket.sendto(ack, server_address)
+
     def receive_response(self):
         # Recebe o nome do arquivo a partir da solicitação
         nome_arquivo = self.FILE_NAME
@@ -66,9 +72,10 @@ class ClientGUI:
         num_bytes = 0
 
         with open(caminho_arquivo, 'wb') as file:
+            seq_num = 0
             while True:
                 try:
-                    pacote, server_address = self.client_socket.recvfrom(1024)
+                    pacote, server_address = self.client_socket.recvfrom(32768)
                 except ConnectionResetError:
                     print('Erro: Conexão com o servidor foi interrompida inesperadamente.')
                     break
@@ -77,20 +84,16 @@ class ClientGUI:
                     print('Recebida mensagem de finalização do servidor.')
                     break  # Encerra o loop se o tamanho do pacote for zero (final da transmissão)
                 
-                # Divide o pacote em checksum e dados
-                checksum_recebido = pacote[:32]
+                # Calcula o checksum apenas para os dados
                 dados = pacote[32:]
                 
-                # Calcula o checksum apenas para os dados
-                checksum_calculado = calcular_checksum(dados)
-                
-                # Verifica se o checksum recebido coincide com o calculado
-                if checksum_recebido == checksum_calculado:
-                    # Escreve os dados recebidos no arquivo
-                    file.write(dados)
-                    num_bytes += len(dados)  # Atualiza a quantidade total de bytes recebidos
-                else:
-                    print('Erro: Checksum incorreto. Dados corrompidos. Descartando pacote.')
+                # Escreve os dados recebidos no arquivo
+                file.write(dados)
+                num_bytes += len(dados)  # Atualiza a quantidade total de bytes recebidos
+
+                # Envia o ACK para o servidor
+                self.enviar_ack(seq_num, server_address)
+                seq_num += 1
 
         self.status_label.configure(text=f"Status Cliente {self.client_id}: Recebidos {num_bytes/1024} Kbytes.")
         print(f'Arquivo recebido salvo em: {caminho_arquivo}')
@@ -100,18 +103,13 @@ class ClientGUI:
             self.client_socket.close()
             self.client_socket = None
 
-# Função para calcular o checksum de uma string
-def calcular_checksum(data):
-    checksum = hashlib.sha256(data).digest()
-    return checksum
-
 if __name__ == "__main__":
     janela = tk.Tk()
     janela.title("Gerenciador de Clientes")
 
     # Criar três instâncias de ClientGUI como exemplo
     clients = []
-    for i in range(1, 4):
+    for i in range(1, 8):
         clients.append(ClientGUI(janela, i))
 
     # Iniciando o loop principal da interface gráfica
