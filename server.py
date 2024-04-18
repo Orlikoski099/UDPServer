@@ -1,28 +1,24 @@
 import socket
 import os
-from protocol import OrlikoskiProtocol
 import threading
 import hashlib
+
+from protocol import OrlikoskiProtocol
 
 # Configurações do servidor
 HOST = '127.0.0.1'  # Endereço IP do servidor
 PORT = 12345        # Porta para comunicação (maior que 1024)
 BUFFER_SIZE = 1024  # Tamanho do buffer para leitura do arquivo
+DATA_MAX_SIZE = BUFFER_SIZE - 32  # Tamanho máximo dos dados no pacote (descontando o espaço para o checksum)
 
 # Função para calcular o checksum de uma string
 def calcular_checksum(data):
     checksum = hashlib.sha256(data).digest()
     return checksum
 
-# Função para dividir os dados em pacotes de tamanho máximo BUFFER_SIZE
-def divide_em_pacotes(data):
-    num_pacotes = len(data) // BUFFER_SIZE + 1
-    pacotes = []
-    for i in range(num_pacotes):
-        inicio = i * BUFFER_SIZE
-        fim = min((i + 1) * BUFFER_SIZE, len(data))
-        pacotes.append(data[inicio:fim])
-    return pacotes
+# Função para enviar um pacote para o cliente
+def enviar_pacote(data, client_socket, client_address):
+    client_socket.sendto(data, client_address)
 
 # Função para processar cada requisição em uma thread separada
 def handle_request(data, client_address):
@@ -36,24 +32,29 @@ def handle_request(data, client_address):
         if os.path.exists(nome_arquivo):
             # Abre o arquivo e envia os dados em pacotes para o cliente
             with open(nome_arquivo, 'rb') as file:
-                dados_arquivo = file.read()
-                checksum = calcular_checksum(dados_arquivo)
-                pacotes = divide_em_pacotes(checksum + dados_arquivo)
-                num_pacotes_enviados = 0  # Inicializa o contador de pacotes enviados
-                for pacote in pacotes:
-                    server_socket.sendto(pacote, client_address)
-                    num_pacotes_enviados += 1
+                while True:
+                    # Lê os dados do arquivo com o tamanho máximo DATA_MAX_SIZE
+                    dados = file.read(DATA_MAX_SIZE)
+                    # Verifica se chegou ao final do arquivo
+                    if not dados:
+                        break
+                    # Calcula o checksum apenas para os dados do pacote atual
+                    checksum = calcular_checksum(dados)
+                    # Concatena o checksum com os dados
+                    pacote = checksum + dados
+                    # Envia o pacote para o cliente
+                    enviar_pacote(pacote, server_socket, client_address)
                 # Enviar um pacote vazio para indicar o final do arquivo
-                server_socket.sendto(b'', client_address)
-                print(f'Dados do arquivo {nome_arquivo} enviados de volta para o cliente. Total de pacotes enviados: {num_pacotes_enviados}')
+                enviar_pacote(b'', server_socket, client_address)
+                print(f'Dados do arquivo {nome_arquivo} enviados de volta para o cliente.')
         else:
             # Se o arquivo não existir, envia uma mensagem de erro para o cliente
             mensagem_erro = 'Arquivo não encontrado'
-            server_socket.sendto(mensagem_erro.encode(), client_address)
+            enviar_pacote(mensagem_erro.encode(), server_socket, client_address)
             print('Mensagem de erro enviada para o cliente.')
     else:
         # Se houver um erro na requisição, envia a mensagem de erro para o cliente
-        server_socket.sendto(resposta.encode(), client_address)
+        enviar_pacote(resposta.encode(), server_socket, client_address)
         print('Mensagem de erro enviada para o cliente.')
 
 # Criação do socket UDP
